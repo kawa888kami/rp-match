@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RP対戦表</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --line:#e2e5ea; --text:#1c2028; --sub:#6b7280;
+    --accent:#2563eb; --accent-w:#eff4ff; --done:#10b981; --warn:#f59e0b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+    font-size:14px; line-height:1.6;
+  }
+  header{
+    background:var(--card); border-bottom:1px solid var(--line);
+    padding:14px 20px; position:sticky; top:0; z-index:50;
+  }
+  h1{margin:0; font-size:18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  h1 small{font-weight:400; font-size:12px; color:var(--sub)}
+  .conn{
+    font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px;
+    background:#f3f4f6; color:var(--sub); white-space:nowrap;
+  }
+  .conn.ok{background:#d1fae5; color:#047857}
+  .conn.ng{background:#fee2e2; color:#b91c1c}
+  nav{display:flex; gap:4px; margin-top:12px; flex-wrap:wrap}
+  nav button{
+    border:1px solid var(--line); background:var(--card); color:var(--sub);
+    padding:7px 14px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600;
+  }
+  nav button.on{background:var(--accent); border-color:var(--accent); color:#fff}
+  main{padding:20px; max-width:1200px; margin:0 auto}
+  .panel{display:none}
+  .panel.on{display:block}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:16px; margin-bottom:16px;
+  }
+  .card h2{margin:0 0 12px; font-size:15px}
+  .card h2 .hint{font-weight:400; font-size:12px; color:var(--sub); margin-left:8px}
+  button.act{
+    border:none; background:var(--accent); color:#fff; padding:9px 16px;
+    border-radius:8px; cursor:pointer; font-size:13px; font-weight:700;
+  }
+  button.act.ghost{background:var(--accent-w); color:var(--accent)}
+  button.act.gray{background:#eef0f3; color:var(--sub)}
+  button.act.danger{background:#fef2f2; color:#dc2626}
+  button.act:disabled{opacity:.4; cursor:not-allowed}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  .stats{display:flex; gap:20px; flex-wrap:wrap; margin-bottom:4px}
+  .stat b{display:block; font-size:22px; line-height:1.2}
+  .stat span{font-size:11px; color:var(--sub)}
+  .bar{height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:10px}
+  .bar i{display:block; height:100%; background:var(--done)}
+
+  .picks{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0}
+  .pick{
+    border:1px solid var(--line); background:#fafbfc; color:var(--sub);
+    padding:5px 11px; border-radius:20px; cursor:pointer; font-size:12.5px; user-select:none;
+  }
+  .pick.on{background:var(--accent-w); border-color:var(--accent); color:var(--accent); font-weight:600}
+
+  .pairs{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:8px}
+  .pair{
+    display:flex; align-items:center; gap:10px; border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; background:#fafbfc;
+  }
+  .pair .no{
+    width:24px; height:24px; flex:none; border-radius:6px; background:var(--accent);
+    color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  .pair .nm{flex:1; font-weight:600}
+  .pair .vs{color:var(--sub); font-size:11px; font-weight:700; margin:0 2px}
+  .rest{background:#fffbeb; border-color:#fde68a}
+  .rest .no{background:var(--warn)}
+
+  .log{border:1px solid var(--line); border-radius:10px; margin-bottom:8px; overflow:hidden}
+  .log summary{
+    padding:10px 14px; cursor:pointer; font-weight:600; background:#fafbfc;
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .log summary span{font-weight:400; font-size:12px; color:var(--sub)}
+  .log .body{padding:12px}
+  .mini{display:flex; flex-wrap:wrap; gap:6px}
+  .mini div{background:#f3f4f6; border-radius:6px; padding:4px 9px; font-size:12px}
+
+  .scroll{overflow:auto; max-height:70vh; border:1px solid var(--line); border-radius:10px}
+  table{border-collapse:separate; border-spacing:0; font-size:11px}
+  th,td{border-right:1px solid var(--line); border-bottom:1px solid var(--line); padding:3px 5px; white-space:nowrap}
+  thead th{position:sticky; top:0; background:#f8f9fb; z-index:2; height:96px; vertical-align:bottom}
+  thead th div{writing-mode:vertical-rl; margin:0 auto}
+  tbody th{position:sticky; left:0; background:#f8f9fb; z-index:1; text-align:left; font-weight:600}
+  thead th:first-child{left:0; z-index:3}
+  td{text-align:center; color:var(--line)}
+  td.y{background:#d1fae5; color:var(--done); font-weight:700}
+  td.self{background:#f1f2f4}
+
+  .mlist{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:6px}
+  .m{display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:8px; padding:8px 11px}
+  .m .nm{flex:1; font-weight:600}
+  .m .pct{font-size:11px; color:var(--sub)}
+  .m .del{border:none; background:none; color:#d1d5db; cursor:pointer; font-size:15px; padding:0 2px}
+  .m .del:hover{color:#dc2626}
+  input[type=text],input[type=date],input[type=password]{
+    border:1px solid var(--line); border-radius:8px; padding:8px 11px; font-size:13px; font-family:inherit;
+  }
+  .wide{width:100%; max-width:560px}
+  code{background:#f3f4f6; padding:2px 6px; border-radius:5px; font-size:12px}
+  pre{background:#1c2028; color:#e5e7eb; padding:12px; border-radius:8px; overflow:auto; font-size:12px}
+  .empty{color:var(--sub); text-align:center; padding:28px; font-size:13px}
+  ol{padding-left:20px} ol li{margin-bottom:6px}
+  @media print{header,nav,button{display:none} .panel{display:block!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RP対戦表 <small id="hdr"></small> <span class="conn" id="conn">…</span></h1>
+  <nav>
+    <button data-t="today" class="on">今日の組み合わせ</button>
+    <button data-t="hist">対戦履歴</button>
+    <button data-t="matrix">対戦マトリクス</button>
+    <button data-t="member">メンバー</button>
+    <button data-t="setup">設定</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ============ 今日 ============ -->
+<section class="panel on" id="p-today">
+  <div class="card">
+    <div class="stats">
+      <div class="stat"><b id="s_mem">0</b><span>メンバー</span></div>
+      <div class="stat"><b id="s_done">0</b><span>対戦済ペア</span></div>
+      <div class="stat"><b id="s_all">0</b><span>全ペア数</span></div>
+      <div class="stat"><b id="s_pct">0%</b><span>達成率</span></div>
+      <div class="stat"><b id="s_round">0</b><span>実施回数</span></div>
+    </div>
+    <div class="bar"><i id="s_bar" style="width:0"></i></div>
+  </div>
+
+  <div class="card">
+    <h2>出席メンバーを選択<span class="hint">その回に参加できる人をON（クリックで切替）</span></h2>
+    <div class="row">
+      <button class="act ghost" id="b_all">全員出席</button>
+      <button class="act gray" id="b_none">全員欠席</button>
+      <span id="cnt_a" style="color:var(--sub);font-size:12px"></span>
+    </div>
+    <div class="picks" id="attend"></div>
+    <div class="row">
+      <button class="act" id="b_gen">組み合わせを作成</button>
+      <input type="date" id="date">
+      <button class="act danger" id="b_reset" style="margin-left:auto">履歴をリセット</button>
+    </div>
+    <p id="msg" style="color:var(--warn); font-size:12px; margin:10px 0 0"></p>
+  </div>
+
+  <div class="card" id="result" style="display:none">
+    <h2>組み合わせ<span class="hint" id="r_hint"></span></h2>
+    <div class="pairs" id="pairs"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="act" id="b_save">この結果を履歴に確定</button>
+      <button class="act ghost" id="b_re">作り直す</button>
+      <button class="act gray" id="b_print">印刷</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 履歴 ============ -->
+<section class="panel" id="p-hist">
+  <div class="card">
+    <h2>実施履歴<span class="hint">新しい順</span></h2>
+    <div id="logs"></div>
+  </div>
+</section>
+
+<!-- ============ マトリクス ============ -->
+<section class="panel" id="p-matrix">
+  <div class="card">
+    <h2>対戦マトリクス<span class="hint">緑＝対戦済み／縦横で誰と誰がやったか確認</span></h2>
+    <div class="scroll" id="mx"></div>
+  </div>
+</section>
+
+<!-- ============ メンバー ============ -->
+<section class="panel" id="p-member">
+  <div class="card">
+    <h2>メンバー管理<span class="hint">％＝他メンバーとの対戦消化率</span></h2>
+    <div class="row" style="margin-bottom:12px">
+      <input type="text" id="newname" placeholder="名前を入力">
+      <button class="act" id="b_add">追加</button>
+      <button class="act ghost" id="b_restore">初期メンバー42名を復元</button>
+      <button class="act danger" id="b_reset2" style="margin-left:auto">履歴をリセット</button>
+    </div>
+    <div class="mlist" id="mlist"></div>
+  </div>
+</section>
+
+<!-- ============ 設定 ============ -->
+<section class="panel" id="p-setup">
+  <div class="card">
+    <h2>共有設定<span class="hint">全員で同じ履歴を見るための接続先</span></h2>
+    <p id="setup_state" style="margin-top:0"></p>
+    <div class="row" style="margin-bottom:8px">
+      <input type="text" id="cfg_url" class="wide" placeholder="Project URL（例: https://xxxxx.supabase.co）">
+    </div>
+    <div class="row" style="margin-bottom:12px">
+      <input type="password" id="cfg_key" class="wide" placeholder="anon public key（eyJ... で始まる長い文字列）">
+    </div>
+    <div class="row">
+      <button class="act" id="b_conn">接続してデータを読み込む</button>
+      <button class="act gray" id="b_disconn">接続を解除（このPCだけで使う）</button>
+    </div>
+    <p style="color:var(--sub);font-size:12px">
+      ここでの入力は<b>このブラウザだけ</b>に保存されます。全員で共有するには、下の2行を <code>index.html</code> の
+      <code>SUPA</code> に書き込んでからGitHubにアップロードしてください。
+    </p>
+    <pre id="cfg_snip">（接続後にここへ貼り付け用のコードが出ます）</pre>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ============================================================
+   共有設定：全員で使うときは下の url / key を埋めてアップロード
+   ============================================================ */
+const SUPA = {
+  url: "https://capgiqorhrrgaiaogsib.supabase.co",
+  key: "sb_publishable_9VrqdwflR86Sga49QaKoDQ_Ii6HO_Xu"
+};
+
+const DEFAULT = ["坂口武蔵","田口亮太","久田翔太","稲波杏奈","木村知代","遠藤羽琉","木原桃香","大谷みくに","杉井友紀","小牟田早智","田仲由敬","河上まちこ","折原加純","佐々木爽","田中悠喜","加藤陸","星野譲治","石田竜一","高橋健太","持木玲那","関口愛里","杉山ふうか","五十嵐凌大","三浦拓迪","和佐田舞緒","佐々木将城","藤田吉陽","小室瑠生","鈴木里果","上村勇人","佐藤ひなた","須見浩人","横山英輝","西岡駿","水野王羅","深見美幸","岡崎未来代","仲戸茶子","根本義輝","坂本日向","澤田笑利","舟木里奈"];
+const KEY = "rp-match-v1";
+const CFG = "rp-conn";
+
+/* ファイルに未記入なら、このブラウザに保存された設定を使う */
+if(!SUPA.url || !SUPA.key){
+  try{
+    const c = JSON.parse(localStorage.getItem(CFG));
+    if(c && c.url && c.key){ SUPA.url = c.url; SUPA.key = c.key; }
+  }catch(e){}
+}
+let REMOTE = !!(SUPA.url && SUPA.key);
+
+let st = {members:[...DEFAULT], rounds:[]};
+let attending = new Set(st.members);
+let draft = null;
+let busy = false;
+
+const pk = (a,b)=> a<b ? a+"\u0000"+b : b+"\u0000"+a;
+const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ================= データ保存層 ================= */
+async function api(path, opts={}){
+  const res = await fetch(SUPA.url.replace(/\/+$/,"") + "/rest/v1/" + path, {
+    method: opts.method || "GET",
+    headers: {
+      apikey: SUPA.key,
+      Authorization: "Bearer " + SUPA.key,
+      "Content-Type": "application/json",
+      Prefer: opts.prefer || "return=representation"
+    },
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  if(!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.status === 204 ? null : res.json();
+}
+
+function localSave(){ localStorage.setItem(KEY, JSON.stringify({members: st.members, rounds: st.rounds})); }
+function localLoad(){
+  try{
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if(d && Array.isArray(d.members) && d.members.length){
+      return {members:d.members, rounds: Array.isArray(d.rounds)? d.rounds : []};
+    }
+  }catch(e){}
+  return {members:[...DEFAULT], rounds:[]};
+}
+
+/* 出席チェックを最新メンバーに合わせる（新メンバーは出席扱い） */
+function syncAttending(before){
+  st.members.forEach(n=>{ if(!before.has(n)) attending.add(n); });
+  [...attending].forEach(n=>{ if(!st.members.includes(n)) attending.delete(n); });
+}
+
+const store = {
+  async pull(){
+    if(!REMOTE){ const before=new Set(st.members); st = localLoad(); syncAttending(before); return; }
+    const [ms, rs] = await Promise.all([
+      api("members?select=name&order=id"),
+      api("rounds?select=id,date,pairs,rest,absent&order=id")
+    ]);
+    const before = new Set(st.members);
+    st = {
+      members: ms.map(m=>m.name),
+      rounds: rs.map(r=>({id:r.id, date:r.date, pairs:r.pairs||[], rest:r.rest||[], absent:r.absent||[]}))
+    };
+    syncAttending(before);
+  },
+  async addMember(name){
+    if(REMOTE){ await api("members", {method:"POST", body:{name}}); await this.pull(); }
+    else { st.members.push(name); attending.add(name); localSave(); }
+  },
+  async addMembers(names){
+    if(REMOTE){ await api("members", {method:"POST", body: names.map(n=>({name:n}))}); await this.pull(); }
+    else { names.forEach(n=>{ st.members.push(n); attending.add(n); }); localSave(); }
+  },
+  async delMember(name){
+    if(REMOTE){ await api(`members?name=eq.${encodeURIComponent(name)}`, {method:"DELETE"}); await this.pull(); }
+    else { st.members = st.members.filter(x=>x!==name); attending.delete(name); localSave(); }
+  },
+  async addRound(r){
+    if(REMOTE){ await api("rounds", {method:"POST", body:{date:r.date, pairs:r.pairs, rest:r.rest, absent:r.absent}}); await this.pull(); }
+    else { st.rounds.push(r); localSave(); }
+  },
+  async delRound(r, idx){
+    if(REMOTE){ await api(`rounds?id=eq.${r.id}`, {method:"DELETE"}); await this.pull(); }
+    else { st.rounds.splice(idx,1); localSave(); }
+  },
+  async clearRounds(){
+    if(REMOTE){ await api("rounds?id=gt.0", {method:"DELETE"}); await this.pull(); }
+    else { st.rounds = []; localSave(); }
+  }
+};
+
+/* 通信中のエラーをまとめて表示 */
+async function run(fn){
+  if(busy) return;
+  busy = true; setConn("同期中…","");
+  try{ await fn(); setConn(REMOTE?"共有モード":"このPCのみ", REMOTE?"ok":""); }
+  catch(e){ setConn("接続エラー","ng"); alert("サーバーとの通信に失敗しました。\n\n"+e.message); }
+  finally{ busy = false; renderAll(); }
+}
+function setConn(text, cls){ conn.textContent = text; conn.className = "conn " + (cls||""); }
+
+/* ================= 集計 ================= */
+function doneSet(){
+  const s = new Set();
+  st.rounds.forEach(r=> r.pairs.forEach(p=> s.add(pk(p[0],p[1]))));
+  return s;
+}
+function partners(){
+  const m = {};
+  st.members.forEach(n=> m[n] = new Set());
+  st.rounds.forEach(r=> r.pairs.forEach(([a,b])=>{
+    if(m[a]) m[a].add(b);
+    if(m[b]) m[b].add(a);
+  }));
+  return m;
+}
+
+/* ---- 組み合わせ生成：未対戦ペアのみで最大マッチング（バックトラック） ---- */
+function makePairs(list){
+  const done = doneSet();
+  const P = partners();
+  const order = [...list].sort(()=>Math.random()-0.5)
+    .sort((a,b)=>{
+      const ra = list.filter(x=>x!==a && !done.has(pk(a,x))).length;
+      const rb = list.filter(x=>x!==b && !done.has(pk(b,x))).length;
+      return ra-rb;
+    });
+  const used = new Set();
+  const out = [];
+  let steps = 0;
+  function rec(){
+    if(++steps > 300000) return false;
+    const me = order.find(n=> !used.has(n));
+    if(!me) return true;
+    used.add(me);
+    const cand = order.filter(n=> !used.has(n) && !done.has(pk(me,n)))
+      .sort((a,b)=> (P[a]?P[a].size:0) - (P[b]?P[b].size:0));
+    for(const c of cand){
+      used.add(c); out.push([me,c]);
+      if(rec()) return true;
+      out.pop(); used.delete(c);
+    }
+    if(order.filter(n=>!used.has(n)).length === 0) return true;
+    used.delete(me);
+    return false;
+  }
+  if(rec()){
+    const rest = list.filter(n=> !out.some(p=> p[0]===n||p[1]===n));
+    return {pairs:out, rest, full:true};
+  }
+  const g=[], u=new Set();
+  for(const a of order){
+    if(u.has(a)) continue;
+    const c = order.find(b=> b!==a && !u.has(b) && !done.has(pk(a,b)));
+    if(c){ u.add(a); u.add(c); g.push([a,c]); }
+  }
+  return {pairs:g, rest:list.filter(n=>!u.has(n)), full:false};
+}
+
+/* ================= 描画 ================= */
+function renderAll(){ renderStats(); renderAttend(); renderResult(); renderLogs(); renderMatrix(); renderMembers(); renderSetup(); }
+
+function renderStats(){
+  const n = st.members.length, all = n*(n-1)/2, d = doneSet().size;
+  const pct = all ? Math.round(d/all*100) : 0;
+  s_mem.textContent=n; s_done.textContent=d; s_all.textContent=all;
+  s_pct.textContent=pct+"%"; s_round.textContent=st.rounds.length;
+  s_bar.style.width=pct+"%";
+  hdr.textContent = `${n}名 ／ ${d}/${all}ペア完了 (${pct}%)`;
+}
+
+function renderAttend(){
+  attend.innerHTML="";
+  st.members.forEach(n=>{
+    const b=document.createElement("div");
+    b.className="pick"+(attending.has(n)?" on":"");
+    b.textContent=n;
+    b.onclick=()=>{ attending.has(n)?attending.delete(n):attending.add(n); renderAttend(); };
+    attend.appendChild(b);
+  });
+  cnt_a.textContent = `出席 ${attending.size} / ${st.members.length} 名（欠席 ${st.members.length-attending.size} 名）`;
+}
+
+function renderResult(){
+  if(!draft){ result.style.display="none"; return; }
+  result.style.display="block";
+  r_hint.textContent = `${draft.pairs.length}組${draft.rest.length?` ／ 待機 ${draft.rest.length}名`:""}`;
+  pairs.innerHTML="";
+  draft.pairs.forEach((p,i)=>{
+    const d=document.createElement("div"); d.className="pair";
+    d.innerHTML=`<div class="no">${i+1}</div><div class="nm">${esc(p[0])}</div><div class="vs">VS</div><div class="nm" style="text-align:right">${esc(p[1])}</div>`;
+    pairs.appendChild(d);
+  });
+  draft.rest.forEach(n=>{
+    const d=document.createElement("div"); d.className="pair rest";
+    d.innerHTML=`<div class="no">休</div><div class="nm">${esc(n)}</div><div class="vs">待機</div>`;
+    pairs.appendChild(d);
+  });
+  // 他の人が先に登録して重複が発生していないか確認
+  const done = doneSet();
+  if(draft.pairs.some(p=> done.has(pk(p[0],p[1]))))
+    msg.textContent = "他の人が先に記録したため、重複するペアがあります。「作り直す」を押してください。";
+}
+
+function renderLogs(){
+  if(!st.rounds.length){ logs.innerHTML='<div class="empty">まだ履歴がありません</div>'; return; }
+  logs.innerHTML="";
+  [...st.rounds].reverse().forEach((r,ri)=>{
+    const idx = st.rounds.length-ri;
+    const pos = st.rounds.length-1-ri;
+    const d=document.createElement("details"); d.className="log";
+    d.innerHTML=`<summary><b>第${idx}回　${r.date}</b><span>${r.pairs.length}組 ${r.rest&&r.rest.length?`／待機${r.rest.length}名`:""}　<a href="#" data-del="${pos}" style="color:#dc2626">削除</a></span></summary>
+      <div class="body"><div class="mini">${r.pairs.map(p=>`<div>${esc(p[0])} <b>vs</b> ${esc(p[1])}</div>`).join("")}
+      ${r.rest&&r.rest.length?`<div style="background:#fffbeb">待機: ${r.rest.map(esc).join("・")}</div>`:""}
+      ${r.absent&&r.absent.length?`<div style="background:#f3f4f6;color:#6b7280">欠席(${r.absent.length}): ${r.absent.map(esc).join("・")}</div>`:""}</div></div>`;
+    logs.appendChild(d);
+  });
+  logs.querySelectorAll("[data-del]").forEach(a=> a.onclick=e=>{
+    e.preventDefault();
+    const i = +a.dataset.del;
+    if(confirm("この回を削除しますか？")) run(()=> store.delRound(st.rounds[i], i));
+  });
+}
+
+function renderMatrix(){
+  const M = st.members;
+  if(!M.length){ mx.innerHTML='<div class="empty">メンバーがいません</div>'; return; }
+  const done = doneSet();
+  let h='<table><thead><tr><th></th>'+M.map(n=>`<th><div>${esc(n)}</div></th>`).join("")+'</tr></thead><tbody>';
+  M.forEach(a=>{
+    h+=`<tr><th>${esc(a)}</th>`;
+    M.forEach(b=>{
+      if(a===b) h+='<td class="self">-</td>';
+      else if(done.has(pk(a,b))) h+='<td class="y">●</td>';
+      else h+='<td>·</td>';
+    });
+    h+="</tr>";
+  });
+  mx.innerHTML = h+"</tbody></table>";
+}
+
+function renderMembers(){
+  const P = partners(), n = st.members.length;
+  mlist.innerHTML="";
+  st.members.forEach(name=>{
+    const c = P[name] ? P[name].size : 0, pct = n>1 ? Math.round(c/(n-1)*100) : 0;
+    const d=document.createElement("div"); d.className="m";
+    d.innerHTML=`<div class="nm">${esc(name)}</div><div class="pct">${c}/${n-1}・${pct}%</div><button class="del" title="このメンバーを削除">×</button>`;
+    d.querySelector(".del").onclick=()=>{
+      if(!confirm(`${name} をメンバーから削除しますか？\n（過去の対戦履歴は記録として残ります）`)) return;
+      run(()=> store.delMember(name));
+    };
+    mlist.appendChild(d);
+  });
+}
+
+function renderSetup(){
+  setup_state.innerHTML = REMOTE
+    ? `<b style="color:#047857">共有モードで動作中</b>　全員が同じ履歴を見て、誰でも記録できます。<br><span style="color:var(--sub);font-size:12px">接続先: ${esc(SUPA.url)}</span>`
+    : `<b style="color:var(--warn)">このPCだけのモード</b>　履歴はこのブラウザにしか保存されず、他の人とは共有されません。`;
+  if(REMOTE){
+    cfg_snip.textContent = `const SUPA = {\n  url: "${SUPA.url}",\n  key: "${SUPA.key}"\n};`;
+  }
+}
+
+/* ================= イベント ================= */
+document.querySelectorAll("nav button").forEach(b=> b.onclick=()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+  document.getElementById("p"+"-"+b.dataset.t).classList.add("on");
+});
+
+b_all.onclick=()=>{ attending=new Set(st.members); renderAttend(); };
+b_none.onclick=()=>{ attending=new Set(); renderAttend(); };
+
+function gen(){
+  const list = st.members.filter(n=> attending.has(n));
+  msg.textContent="";
+  if(list.length<2){ msg.textContent="出席メンバーを2名以上選択してください"; draft=null; renderResult(); return; }
+  draft = makePairs(list);
+  if(!draft.full) msg.textContent="未対戦の組み合わせだけでは全員は組めませんでした。待機者は次回優先で組んでください。";
+  else if(draft.rest.length) msg.textContent="奇数のため1名が待機になります。";
+  renderResult();
+}
+b_gen.onclick=gen;
+b_re.onclick=gen;
+
+b_save.onclick=()=>{
+  if(!draft || !draft.pairs.length) return;
+  const r = {
+    date: date.value || new Date().toISOString().slice(0,10),
+    pairs: draft.pairs,
+    rest: draft.rest,
+    absent: st.members.filter(n=> !attending.has(n))
+  };
+  run(async ()=>{ await store.addRound(r); draft=null; msg.textContent=""; });
+};
+b_print.onclick=()=>window.print();
+
+b_add.onclick=()=>{
+  const v=newname.value.trim();
+  if(!v) return;
+  if(st.members.includes(v)){ alert("同じ名前が既にあります"); return; }
+  newname.value="";
+  run(()=> store.addMember(v));
+};
+newname.onkeydown=e=>{ if(e.key==="Enter") b_add.onclick(); };
+
+b_restore.onclick=()=>{
+  const add = DEFAULT.filter(n=> !st.members.includes(n));
+  if(!add.length){ alert("初期メンバー42名は全員そろっています"); return; }
+  run(async ()=>{ await store.addMembers(add); alert(`${add.length}名を復元しました`); });
+};
+
+/* 消すのは対戦履歴だけ。メンバーには一切触れない */
+function resetHistory(){
+  if(!st.rounds.length){ alert("履歴はまだありません"); return; }
+  if(!confirm(`対戦履歴（${st.rounds.length}回分）をすべて消去します。\nメンバー${st.members.length}名はそのまま残ります。${REMOTE?"\n※全員の画面から消えます。":""}\nこの操作は取り消せません。よろしいですか？`)) return;
+  run(async ()=>{ await store.clearRounds(); draft=null; });
+}
+b_reset.onclick = resetHistory;
+b_reset2.onclick = resetHistory;
+
+/* ---- 共有設定 ---- */
+b_conn.onclick=()=>{
+  const url = cfg_url.value.trim().replace(/\/+$/,""), key = cfg_key.value.trim();
+  if(!url || !key){ alert("URLとキーの両方を入力してください"); return; }
+  const prev = {url:SUPA.url, key:SUPA.key, remote:REMOTE};
+  SUPA.url = url; SUPA.key = key; REMOTE = true;
+  run(async ()=>{
+    try{
+      await store.pull();
+      if(!st.members.length) await store.addMembers(DEFAULT);
+      localStorage.setItem(CFG, JSON.stringify({url, key}));
+      alert("接続しました。これで全員が同じ履歴を共有できます。");
+    }catch(e){
+      // 失敗したら元の状態に戻す（中途半端に共有モードのままにしない）
+      SUPA.url = prev.url; SUPA.key = prev.key; REMOTE = prev.remote;
+      await store.pull();
+      throw e;
+    }
+  });
+};
+b_disconn.onclick=()=>{
+  if(!confirm("共有をやめて、このPCだけのモードに戻しますか？\n（サーバー側のデータは消えません）")) return;
+  localStorage.removeItem(CFG);
+  location.reload();
+};
+
+/* ---- 起動 ---- */
+date.value = new Date().toISOString().slice(0,10);
+cfg_url.value = SUPA.url; cfg_key.value = SUPA.key;
+setConn(REMOTE ? "読み込み中…" : "このPCのみ", "");
+run(()=> store.pull());
+
+/* 共有モードでは他の人の記録を自動で取り込む */
+if(REMOTE){
+  setInterval(()=>{ if(!busy && !document.hidden) run(()=> store.pull()); }, 20000);
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && !busy) run(()=> store.pull()); });
+}
+</script>
+</body>
+</html>
